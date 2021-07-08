@@ -3,7 +3,7 @@ plugins {
     id 'org.jetbrains.kotlin.jvm' version '1.5.20'
 }
 
-group 'org.example'
+group 'net.karolnowak.simplehttpserver'
 version '1.0-SNAPSHOT'
 
 repositories {
@@ -21,4 +21,16 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+task fatJar(type: Jar) {
+    manifest {
+        attributes 'Main-Class': 'net.karolnowak.simplehttpserver.AppKt'
+    }
+    archiveClassifier = "all"
+    from {
+        configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    with jar
 }

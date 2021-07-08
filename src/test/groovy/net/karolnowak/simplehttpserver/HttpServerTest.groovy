@@ -1,3 +1,5 @@
+package net.karolnowak.simplehttpserver
+
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -5,19 +7,22 @@ import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Subject
 
+import java.nio.file.Files
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 
 class HttpServerTest extends Specification {
     @Subject
     @Shared
-    HttpServer server = new HttpServer("file")
+    HttpServer server
 
     OkHttpClient client = new OkHttpClient.Builder().callTimeout(100, MILLISECONDS)
             .readTimeout(100, MILLISECONDS)
             .build()
 
     def "setupSpec"() {
+        byte[] testFileBytes = HttpServerTest.class.getResource("/file").bytes
+        server = new HttpServer(testFileBytes)
         server.start()
     }
 

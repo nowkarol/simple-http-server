@@ -1,18 +1,15 @@
+package net.karolnowak.simplehttpserver
+
 import java.io.OutputStream
 import java.net.ServerSocket
 import java.net.Socket
 import java.nio.file.Files
+import java.nio.file.Files.readAllBytes
 import java.nio.file.Paths
 
 private const val EOL = "\r\n"
 
-class HttpServer(filePath: String) {
-    private var fileBytes = getFileBytes(filePath)
-
-    private fun getFileBytes(filePath: String): ByteArray {
-        val fileUrl = HttpServer::class.java.getResource(filePath)
-        return Files.readAllBytes(Paths.get(fileUrl.toURI()))
-    }
+class HttpServer(private val fileBytes: ByteArray) {
 
     fun start() {
         Thread { serveFile() }.start()
