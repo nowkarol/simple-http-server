@@ -3,20 +3,17 @@ package net.karolnowak.simplehttpserver
 import java.io.OutputStream
 import java.net.ServerSocket
 import java.net.Socket
-import java.nio.file.Files
-import java.nio.file.Files.readAllBytes
-import java.nio.file.Paths
 
 private const val EOL = "\r\n"
 
-class HttpServer(private val fileBytes: ByteArray) {
+class HttpServer(private val fileBytes: ByteArray, private val port: Int = 80) {
 
     fun start() {
         Thread { serveFile() }.start()
     }
 
     private fun serveFile() {
-        val socket = ServerSocket(80, 0) // backlog 0 seems to be ignored
+        val socket = ServerSocket(port, 0) // backlog 0 seems to be ignored
         while (true) {
             runCatching {
                 socket.accept().use { socket ->
@@ -24,7 +21,7 @@ class HttpServer(private val fileBytes: ByteArray) {
                     val outputStream: OutputStream = socket.getOutputStream()
                     val response: Response = respondTo(request)
                     outputStream.write(response.asBytes())
-                    println(response)
+//                    println(response) recognize binary data before printing
                 }
             }
         }
@@ -32,7 +29,7 @@ class HttpServer(private val fileBytes: ByteArray) {
 
     private fun respondTo(request: Request) =
         when (request.method) {
-            "GET" -> Response(200, "Spoko", fileBytes.decodeToString())
+            "GET" -> Response(200, "Spoko", fileBytes)
             else -> Response(405, "Nope")
         }
 }
@@ -45,14 +42,15 @@ private fun Socket.readRequest(): Request {
 }
 
 internal data class Request(val method: String, val requestTarget: String, val httpVersion: String)
-internal data class Response(val statusCode: Int, val reasonPhrase: String, val responseBody: String = "") {
+internal data class Response(val statusCode: Int, val reasonPhrase: String, val responseBody: ByteArray = ByteArray(0)) {
     private fun isSuccessful() = statusCode in (100..399)
 
-    override fun toString(): String {
+    private fun statusLineAndHeaders(): String {
         val statusLine = "HTTP/1.1 $statusCode $reasonPhrase"
-        val headers = if (isSuccessful()) "Content-Length: ${responseBody.toByteArray().size}" else "Accept: GET"
-        return statusLine + EOL + headers + EOL + EOL + if (isSuccessful()) responseBody + EOL else ""
+        val headers = if (isSuccessful()) "Content-Length: ${responseBody.size}" else "Accept: GET"
+        // no Content-Type yet so browser displays it only because of magic numbers
+        return statusLine + EOL + headers + EOL + EOL
     }
 
-    fun asBytes() = toString().toByteArray()
+    fun asBytes() = statusLineAndHeaders().toByteArray() + responseBody
 }
