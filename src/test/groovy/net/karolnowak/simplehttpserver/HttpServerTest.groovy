@@ -7,31 +7,40 @@ import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Subject
 
-import java.nio.file.Files
+import java.nio.file.Path
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS
+import static net.karolnowak.simplehttpserver.ContentKt.contentFromPath
 
 class HttpServerTest extends Specification {
     @Subject
     @Shared
-    HttpServer server
+    HttpServer serverWithTextFile
 
     @Subject
     @Shared
     HttpServer serverWithBinaryContent
+
+    @Subject
+    @Shared
+    HttpServer serverWithDirectory
 
     OkHttpClient client = new OkHttpClient.Builder().callTimeout(100, MILLISECONDS)
             .readTimeout(100, MILLISECONDS)
             .build()
 
     def "setupSpec"() {
-        byte[] textFileBytes = HttpServerTest.class.getResource("/file").bytes
-        server = new HttpServer(textFileBytes, 80)
-        server.start()
+        Path textFilePath = Path.of(HttpServerTest.class.getResource("/file").toURI())
+        serverWithTextFile = new HttpServer(contentFromPath(textFilePath), 80)
+        serverWithTextFile.start()
 
-        byte[] imageBytes = HttpServerTest.class.getResource("/wiki_logo.png").bytes
-        serverWithBinaryContent = new HttpServer(imageBytes, 8080)
+        Path imagePath = Path.of(HttpServerTest.class.getResource("/wiki_logo.png").toURI())
+        serverWithBinaryContent = new HttpServer(contentFromPath(imagePath), 8080)
         serverWithBinaryContent.start()
+
+        Path directoryPath = Path.of(HttpServerTest.class.getResource("/wiki_logo.png").toURI()).parent
+        serverWithDirectory = new HttpServer(contentFromPath(directoryPath), 8081)
+        serverWithDirectory.start()
     }
 
     def "should serve file"() {
@@ -59,10 +68,20 @@ class HttpServerTest extends Specification {
             Response result = client.newCall(new Request.Builder()
                 .get().url("http://localhost:8080").build()).execute()
         then:
-            with(result)  {
+
+            with(result) {
                 header("Content-Length") == "199002"
                 body().bytes().size() == 199002
             }
+    }
+
+    def "should serve directory listing"() {
+        when:
+            Response result = client.newCall(new Request.Builder()
+                .get().url("http://localhost:8081").build()).execute()
+        then:
+        result.body().string() == "file\r\nwiki_logo.png"
+        // but it adds CR LF between positions in listing
     }
 
     def "should return 405 and Allow header when request uses method other than GET"() {

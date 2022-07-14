@@ -4,9 +4,9 @@ import java.io.OutputStream
 import java.net.ServerSocket
 import java.net.Socket
 
-private const val EOL = "\r\n"
+const val EOL = "\r\n"
 
-class HttpServer(private val fileBytes: ByteArray, private val port: Int = 80) {
+class HttpServer(private val content: Content, private val port: Int = 80) {
 
     fun start() {
         Thread { serveFile() }.start()
@@ -29,7 +29,7 @@ class HttpServer(private val fileBytes: ByteArray, private val port: Int = 80) {
 
     private fun respondTo(request: Request) =
         when (request.method) {
-            "GET" -> Response(200, "Spoko", fileBytes)
+            "GET" -> Response(200, "Spoko", content.asByteArray())
             else -> Response(405, "Nope")
         }
 }
