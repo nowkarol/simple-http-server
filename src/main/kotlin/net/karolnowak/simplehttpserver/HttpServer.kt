@@ -5,6 +5,7 @@ import java.net.ServerSocket
 import java.net.Socket
 
 const val EOL = "\r\n"
+const val ROOT = """/"""
 
 class HttpServer(private val content: Content, private val port: Int = 80) {
 
@@ -27,18 +28,22 @@ class HttpServer(private val content: Content, private val port: Int = 80) {
         }
     }
 
-    private fun respondTo(request: Request) =
-        when (request.method) {
-            "GET" -> Response(200, "Spoko", content.asByteArray())
-            else -> Response(405, "Nope")
+    private fun respondTo(request: Request): Response {
+        if (request.method != "GET") {
+            return Response(405, "Nope")
         }
+        if (content.doesntContain(request.requestTarget)) {
+            return Response(404, "It doesn't exist")
+        }
+        return Response(200, "Spoko", content.asByteArray(request.requestTarget))
+    }
 }
 
 private fun Socket.readRequest(): Request {
     val requestLine = getInputStream().bufferedReader().readLine() // liberal in EOL recognition
     val tokens = requestLine.split(" ")
     require(tokens.size == 3)
-    return Request(tokens[0].uppercase(), tokens[1].uppercase(), tokens[2].uppercase())
+    return Request(tokens[0], tokens[1], tokens[2])
 }
 
 internal data class Request(val method: String, val requestTarget: String, val httpVersion: String)

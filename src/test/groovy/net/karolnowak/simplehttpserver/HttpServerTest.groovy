@@ -43,13 +43,16 @@ class HttpServerTest extends Specification {
         serverWithDirectory.start()
     }
 
-    def "should serve file"() {
+    def "should serve file at root target resource when argument is file"() {
         when:
             Response result = client.newCall(new Request.Builder()
                     .get().url("http://localhost").build()).execute()
         then:
-            result.body().string() == """this is file content
+            with (result) {
+                code() == 200
+                body().string() == """this is file content
                                         |second line""".stripMargin('|')
+            }
             // server doesn't add CR
     }
 
@@ -66,22 +69,47 @@ class HttpServerTest extends Specification {
     def "should serve binary file"() {
         when:
             Response result = client.newCall(new Request.Builder()
-                .get().url("http://localhost:8080").build()).execute()
+                    .get().url("http://localhost:8080").build()).execute()
         then:
-
             with(result) {
+                code() == 200
                 header("Content-Length") == "199002"
                 body().bytes().size() == 199002
             }
     }
 
-    def "should serve directory listing"() {
+    def "should serve directory listing as root target resource when argument is a directory"() {
         when:
             Response result = client.newCall(new Request.Builder()
-                .get().url("http://localhost:8081").build()).execute()
+                    .get().url("http://localhost:8081").build()).execute()
         then:
-        result.body().string() == "file\r\nwiki_logo.png"
-        // but it adds CR LF between positions in listing
+            with (result) {
+                code() == 200
+                result.body().string() == "file\r\nwiki_logo.png"
+            }
+            // but it adds CR LF between positions in listing
+    }
+
+    def "should serve all files from directory"() {
+        when:
+            Response textResult = client.newCall(new Request.Builder()
+                    .get().url("http://localhost:8081/file").build()).execute()
+        then:
+            with(textResult) {
+                code() == 200
+                body().string() == """this is file content
+                                      |second line""".stripMargin('|')
+            }
+
+        when:
+            Response binaryResult = client.newCall(new Request.Builder()
+                    .get().url("http://localhost:8081/wiki_logo.png").build()).execute()
+        then:
+            with(binaryResult) {
+                code() == 200
+                header("Content-Length") == "199002"
+                body().bytes().size() == 199002
+            }
     }
 
     def "should return 405 and Allow header when request uses method other than GET"() {
@@ -89,7 +117,7 @@ class HttpServerTest extends Specification {
             Response result = client.newCall(new Request.Builder()
                     .delete().url("http://localhost").build()).execute()
         then:
-            with (result) {
+            with(result) {
                 code == 405
                 header("Accept") == "GET"
                 body().string().isEmpty()
