@@ -83,10 +83,9 @@ class HttpServerTest extends Specification {
             Response result = client.newCall(new Request.Builder()
                     .get().url("http://localhost:8081").build()).execute()
         then:
-            with (result) {
-                code() == 200
-                result.body().string() == "file\r\nwiki_logo.png"
-            }
+            result.code == 200
+            def response = result.body().string()
+            response == "file\r\nwiki_logo.png" || response == "wiki_logo.png\r\nfile"
             // but it adds CR LF between positions in listing
     }
 
