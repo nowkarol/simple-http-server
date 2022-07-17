@@ -12,8 +12,8 @@ repositories {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib"
-    implementation 'org.codehaus.groovy:groovy-all:3.0.5'
-    implementation 'com.squareup.okhttp3:okhttp:4.9.1'
+    testImplementation 'org.codehaus.groovy:groovy-all:3.0.5'
+    testImplementation 'com.squareup.okhttp3:okhttp:4.9.1'
     testImplementation group: 'org.spockframework', name: 'spock-core', version: '2.0-groovy-3.0'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.6.0'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
@@ -29,8 +29,7 @@ task fatJar(type: Jar) {
     }
     archiveClassifier = "all"
     from {
-        configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+        configurations.runtimeClasspath.collect {it.isDirectory() ? it : zipTree(it) }
     }
     with jar
 }
