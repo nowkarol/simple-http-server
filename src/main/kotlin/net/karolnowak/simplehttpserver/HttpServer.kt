@@ -49,7 +49,6 @@ private fun Socket.readRequest(): Request {
 internal data class Request(val method: String, val requestTarget: String, val httpVersion: String)
 internal data class Response(val statusCode: Int, val reasonPhrase: String, val responseBody: ByteArray = ByteArray(0)) {
     private fun isSuccessful() = statusCode in (100..399)
-
     private fun statusLineAndHeaders(): String {
         val statusLine = "HTTP/1.1 $statusCode $reasonPhrase"
         val headers = if (isSuccessful()) "Content-Length: ${responseBody.size}" else "Accept: GET"

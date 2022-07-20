@@ -85,8 +85,19 @@ class HttpServerTest extends Specification {
         then:
             result.code == 200
             def response = result.body().string()
-            response == "file\r\nwiki_logo.png" || response == "wiki_logo.png\r\nfile"
-            // but it adds CR LF between positions in listing
+            response == """<!DOCTYPE html>
+                          |<body>
+                          |   <ul>
+                          |      <li><a href=file><b>file</b></a></li><li><a href=wiki_logo.png><b>wiki_logo.png</b></a></li>
+                          |   </ul>
+                          |</body>""".stripMargin("|")
+                    ||
+             response == """<!DOCTYPE html>
+                           |<body>
+                           |   <ul>
+                           |      <li><a href=wiki_logo.png><b>wiki_logo.png</b></a></li><li><a href=file><b>file</b></a></li>
+                           |   </ul>
+                           |</body>""".stripMargin("|")
     }
 
     def "should serve all files from directory"() {

@@ -35,8 +35,13 @@ class DirectoryContent(path: Path) : Content {
             getFilePath(resource)!!.getBytes()
 
     private fun listFiles() =
-        files.joinToString(separator = EOL) { it.toHtml() }
-            .toByteArray()
+        """<!DOCTYPE html>
+          |<body>
+          |   <ul>
+          |      ${files.joinToString(separator = "") { it.toHtmlListItem() }}
+          |   </ul>
+          |</body>
+        """.trimMargin("|").toByteArray()
 
     override fun contains(resource: String) =
         (getFilePath(resource) != null) or (resource == ROOT)
@@ -46,4 +51,4 @@ class DirectoryContent(path: Path) : Content {
 
 private fun Path.getBytes(): ByteArray = Files.readAllBytes(this)
 
-private fun Path.toHtml(): String = this.fileName.toString()
+private fun Path.toHtmlListItem(): String = """<li><a href=${this.fileName}><b>${this.fileName}</b></a></li>"""
