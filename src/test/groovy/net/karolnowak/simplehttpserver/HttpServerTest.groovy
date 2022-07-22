@@ -10,7 +10,7 @@ import spock.lang.Subject
 import java.nio.file.Path
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS
-import static net.karolnowak.simplehttpserver.ContentKt.contentFromPath
+import static net.karolnowak.simplehttpserver.ContentProviderKt.contentFromPath
 
 class HttpServerTest extends Specification {
     @Subject
@@ -50,6 +50,7 @@ class HttpServerTest extends Specification {
         then:
             with (result) {
                 code() == 200
+                header("Content-Type") == "binary/octet-stream"
                 body().string() == """this is file content
                                         |second line""".stripMargin('|')
             }
@@ -73,6 +74,7 @@ class HttpServerTest extends Specification {
         then:
             with(result) {
                 code() == 200
+                header("Content-Type") == "binary/octet-stream"
                 header("Content-Length") == "199002"
                 body().bytes().size() == 199002
             }
@@ -84,6 +86,7 @@ class HttpServerTest extends Specification {
                     .get().url("http://localhost:8081").build()).execute()
         then:
             result.code == 200
+            result.header("Content-Type") == "text/html; charset=UTF-8"
             def response = result.body().string()
             response == """<!DOCTYPE html>
                           |<body>
@@ -107,6 +110,7 @@ class HttpServerTest extends Specification {
         then:
             with(textResult) {
                 code() == 200
+                header("Content-Type") == "binary/octet-stream"
                 body().string() == """this is file content
                                       |second line""".stripMargin('|')
             }
@@ -117,6 +121,7 @@ class HttpServerTest extends Specification {
         then:
             with(binaryResult) {
                 code() == 200
+                header("Content-Type") == "binary/octet-stream"
                 header("Content-Length") == "199002"
                 body().bytes().size() == 199002
             }
@@ -129,7 +134,7 @@ class HttpServerTest extends Specification {
         then:
             with(result) {
                 code == 405
-                header("Accept") == "GET"
+                header("Allow") == "GET"
                 body().string().isEmpty()
             }
     }

@@ -7,7 +7,7 @@ import java.net.Socket
 const val EOL = "\r\n"
 const val ROOT = """/"""
 
-class HttpServer(private val content: Content, private val port: Int = 80) {
+class HttpServer(private val contentProvider: ContentProvider, private val port: Int = 80) {
 
     fun start() {
         Thread { serveFile() }.start()
@@ -32,10 +32,10 @@ class HttpServer(private val content: Content, private val port: Int = 80) {
         if (request.method != "GET") {
             return Response(405, "Nope")
         }
-        if (content.doesntContain(request.requestTarget)) {
+        if (contentProvider.doesntContain(request.requestTarget)) {
             return Response(404, "It doesn't exist")
         }
-        return Response(200, "Spoko", content.asByteArray(request.requestTarget))
+        return Response(200, "Spoko", contentProvider.getResource(request.requestTarget))
     }
 }
 
@@ -47,14 +47,16 @@ private fun Socket.readRequest(): Request {
 }
 
 internal data class Request(val method: String, val requestTarget: String, val httpVersion: String)
-internal data class Response(val statusCode: Int, val reasonPhrase: String, val responseBody: ByteArray = ByteArray(0)) {
+internal data class Response(val statusCode: Int, val reasonPhrase: String, val content: Content = NoContent()) {
     private fun isSuccessful() = statusCode in (100..399)
     private fun statusLineAndHeaders(): String {
         val statusLine = "HTTP/1.1 $statusCode $reasonPhrase"
-        val headers = if (isSuccessful()) "Content-Length: ${responseBody.size}" else "Accept: GET"
-        // no Content-Type yet so browser displays it only because of magic numbers
+        val headers = if (isSuccessful())
+            "Content-Length: ${content.length()}${EOL}" +
+            "Content-Type: ${content.type().raw}"
+        else "Allow: GET"
         return statusLine + EOL + headers + EOL + EOL
     }
 
-    fun asBytes() = statusLineAndHeaders().toByteArray() + responseBody
+    fun asBytes() = statusLineAndHeaders().toByteArray() + content.asByteArray()
 }
