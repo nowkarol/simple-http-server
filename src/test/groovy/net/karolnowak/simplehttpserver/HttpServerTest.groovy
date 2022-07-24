@@ -50,7 +50,7 @@ class HttpServerTest extends Specification {
         then:
             with (result) {
                 code() == 200
-                header("Content-Type") == "binary/octet-stream"
+                header("Content-Type") == "text/plain; charset=us-ascii" || header("Content-Type") == "binary/octet-stream" //not Unix systems
                 body().string() == """this is file content
                                         |second line""".stripMargin('|')
             }
@@ -74,7 +74,7 @@ class HttpServerTest extends Specification {
         then:
             with(result) {
                 code() == 200
-                header("Content-Type") == "binary/octet-stream"
+                header("Content-Type") == "image/png; charset=binary" || header("Content-Type") == "binary/octet-stream" //not Unix systems
                 header("Content-Length") == "199002"
                 body().bytes().size() == 199002
             }
@@ -110,7 +110,7 @@ class HttpServerTest extends Specification {
         then:
             with(textResult) {
                 code() == 200
-                header("Content-Type") == "binary/octet-stream"
+                header("Content-Type") == "text/plain; charset=us-ascii" || header("Content-Type") == "binary/octet-stream" //not Unix systems
                 body().string() == """this is file content
                                       |second line""".stripMargin('|')
             }
@@ -121,7 +121,7 @@ class HttpServerTest extends Specification {
         then:
             with(binaryResult) {
                 code() == 200
-                header("Content-Type") == "binary/octet-stream"
+                header("Content-Type") == "image/png; charset=binary" || header("Content-Type") == "binary/octet-stream" //not Unix systems
                 header("Content-Length") == "199002"
                 body().bytes().size() == 199002
             }

@@ -19,7 +19,7 @@ interface ContentProvider {
 
 class FileContentProvider(private val path: Path) : ContentProvider {
     override fun contains(requestTarget: String) = path.toString().endsWith(requestTarget) || requestTarget == ROOT
-    override fun getResource(requestTarget: String) = FileContent(Files.readAllBytes(path))
+    override fun getResource(requestTarget: String) = FileContent(path)
 }
 
 class DirectoryContentProvider(path: Path) : ContentProvider {
@@ -29,9 +29,8 @@ class DirectoryContentProvider(path: Path) : ContentProvider {
 
     override fun getResource(requestTarget: String) =
         if (requestTarget == ROOT) DirectoryListing(files)
-        else FileContent(getFileBytes(requestTarget))
+        else FileContent(getFilePath(requestTarget))
 
-    private fun getFileBytes(resource: String) =
-        Files.readAllBytes(files.firstOrNull { it.toString().endsWith(resource) })
-
+    private fun getFilePath(resource: String) =
+        files.firstOrNull { it.toString().endsWith(resource) }!!.toAbsolutePath()
 }

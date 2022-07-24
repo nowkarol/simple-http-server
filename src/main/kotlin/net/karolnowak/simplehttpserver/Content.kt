@@ -1,6 +1,8 @@
 package net.karolnowak.simplehttpserver
 
+import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.TimeUnit.MILLISECONDS
 
 interface Content {
     fun asByteArray(): ByteArray
@@ -10,11 +12,42 @@ interface Content {
 
 data class ContentType(val raw: String)
 
-class FileContent(private val byteArray: ByteArray) : Content {
+class FileContent(path: Path) : Content {
+    private val FALLBACK_CONTENT_TYPE = ContentType("binary/octet-stream")
+    private val CONTENT_TYPE_CHECK_TIMEOUT_MS = 50L
 
-    override fun asByteArray() = byteArray
+    private val contentType = getContentType(path)
 
-    override fun type() = ContentType("binary/octet-stream")
+    private val byteArray = Files.readAllBytes(path)
+
+    override fun asByteArray(): ByteArray = byteArray
+
+    override fun type() = contentType
+
+
+    private fun getContentType(path: Path): ContentType {
+        if (!Files.exists(path)) {
+            throw IllegalStateException("Cannot get Content Type of path $path") //security check
+        }
+        val contentType = executeFileCommand(path)
+        return contentType ?: FALLBACK_CONTENT_TYPE.also { println("Failed to obtain file's Content Type") }
+    }
+
+    private fun executeFileCommand(path: Path): ContentType? {
+        return try {
+            val fileTypeCheck = Runtime.getRuntime().exec("file -I $path")
+            fileTypeCheck.waitFor(CONTENT_TYPE_CHECK_TIMEOUT_MS, MILLISECONDS)
+            if (fileTypeCheck!!.exitValue() != 0) return null
+            val fileResult = fileTypeCheck
+                .inputStream.readAllBytes()
+                .let { String(it) }
+            val mimeType = fileResult.split(":")[1].trim()
+            if (mimeType.isBlank()) return null
+            ContentType(mimeType)
+        } catch (ex: Exception) {
+            null
+        }
+    }
 }
 
 class DirectoryListing(private val files: List<Path>) : Content {
