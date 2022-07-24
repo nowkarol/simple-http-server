@@ -50,7 +50,11 @@ class FileContent(path: Path) : Content {
     }
 }
 
-class DirectoryListing(private val files: List<Path>) : Content {
+class DirectoryListing(files: List<Path>) : Content {
+    private val sortedFiles = files.sortedWith(
+        compareByDescending<Path> { Files.isDirectory(it) } // directories first
+            .thenComparing(compareBy { it.fileName }))
+
     override fun asByteArray() = listFiles()
 
     override fun type() = ContentType("text/html; charset=UTF-8")
@@ -59,13 +63,13 @@ class DirectoryListing(private val files: List<Path>) : Content {
         """<!DOCTYPE html>
           |<body>
           |   <ul>
-          |      ${files.joinToString(separator = "") { it.toHtmlListItem() }}
+          |      ${sortedFiles.joinToString(separator = "") { it.toHtmlListItem() }}
           |   </ul>
           |</body>
         """.trimMargin("|").toByteArray()
 }
 
-private fun Path.toHtmlListItem(): String = """<li><a href=${this.fileName}><b>${this.fileName}</b></a></li>"""
+private fun Path.toHtmlListItem(): String = """<li><a href="${this.fileName}"><b>${this.fileName}</b></a></li>"""
 
 class NoContent : Content {
     override fun asByteArray() = ByteArray(0)

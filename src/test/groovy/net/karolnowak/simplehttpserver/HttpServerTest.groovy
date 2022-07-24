@@ -91,16 +91,9 @@ class HttpServerTest extends Specification {
             response == """<!DOCTYPE html>
                           |<body>
                           |   <ul>
-                          |      <li><a href=file><b>file</b></a></li><li><a href=wiki_logo.png><b>wiki_logo.png</b></a></li>
+                          |      <li><a href="1"><b>1</b></a></li><li><a href="file"><b>file</b></a></li><li><a href="wiki_logo.png"><b>wiki_logo.png</b></a></li>
                           |   </ul>
                           |</body>""".stripMargin("|")
-                    ||
-             response == """<!DOCTYPE html>
-                           |<body>
-                           |   <ul>
-                           |      <li><a href=wiki_logo.png><b>wiki_logo.png</b></a></li><li><a href=file><b>file</b></a></li>
-                           |   </ul>
-                           |</body>""".stripMargin("|")
     }
 
     def "should serve all files from directory"() {
