@@ -29,6 +29,10 @@ class HttpServer(private val contentProvider: ContentProvider, private val port:
     }
 
     private fun respondTo(request: Request): Response {
+        if (request.isValid().not()) {
+            return Response(400, "Your fault")
+        }
+
         if (request.method != "GET") {
             return Response(405, "Nope")
         }
@@ -46,7 +50,10 @@ private fun Socket.readRequest(): Request {
     return Request(tokens[0], tokens[1], tokens[2])
 }
 
-internal data class Request(val method: String, val requestTarget: String, val httpVersion: String)
+internal data class Request(val method: String, val requestTarget: String, val httpVersion: String) {
+    fun isValid() = !requestTarget.contains("..") && !requestTarget.uppercase().contains("%2E%2E")
+}
+
 internal data class Response(val statusCode: Int, val reasonPhrase: String, val content: Content = NoContent()) {
     private fun isSuccessful() = statusCode in (100..399)
     private fun statusLineAndHeaders(): String {

@@ -177,8 +177,28 @@ class HttpServerTest extends Specification {
             }
     }
 
-    // TODO secure against .. traversing
-    // TODO test for target without slash
+    def "should return 404 for non existent file"() {
+        when:
+            Response result = client.newCall(new Request.Builder()
+                    .get().url("http://localhost/something").build()).execute()
+        then:
+            with(result) {
+                code == 404
+                body().string().isEmpty()
+            }
+    }
+
+    @Unroll
+    def "should return 400 for invalid resource paths #invalidPath"() {
+        when:
+           def (body, exception) = useClientWhichDoesntSanitizeRequest("http://localhost:8081/$invalidPath")
+
+        then:
+            body == null
+            exception.message.contains " 400 "
+
+        where: invalidPath << ["..", "1/2/..", "1/2/../2", "1/2/..", "1/2/%2E%2E"]
+    }
 
     def "should return 405 and Allow header when request uses method other than GET"() {
         when:
@@ -190,5 +210,13 @@ class HttpServerTest extends Specification {
                 header("Allow") == "GET"
                 body().string().isEmpty()
             }
+    }
+
+    Tuple useClientWhichDoesntSanitizeRequest(String url) {
+        try {
+            new Tuple(new String(new URL(url).openStream().readAllBytes()), null)
+        } catch (Exception ex) {
+            new Tuple(null, ex)
+        }
     }
 }
