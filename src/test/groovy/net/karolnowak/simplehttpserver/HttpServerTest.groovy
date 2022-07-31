@@ -6,6 +6,7 @@ import okhttp3.Response
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Subject
+import spock.lang.Unroll
 
 import java.nio.file.Path
 
@@ -48,7 +49,7 @@ class HttpServerTest extends Specification {
             Response result = client.newCall(new Request.Builder()
                     .get().url("http://localhost").build()).execute()
         then:
-            with (result) {
+            with(result) {
                 code() == 200
                 header("Content-Type") == "text/plain; charset=us-ascii" || header("Content-Type") == "binary/octet-stream" //not Unix systems
                 body().string() == """this is file content
@@ -119,6 +120,65 @@ class HttpServerTest extends Specification {
                 body().bytes().size() == 199002
             }
     }
+
+    @Unroll
+    def "should serve listing of nested directories on #path"() {
+        when:
+            Response listingResult = client.newCall(new Request.Builder()
+                    .get().url("http://localhost:8081/$path").build()).execute()
+
+        then:
+            with(listingResult) {
+                code() == 200
+                header("Content-Type") == "text/html; charset=UTF-8"
+                def response = body().string()
+                response == """<!DOCTYPE html>
+                          |<body>
+                          |   <ul>
+                          |      <li><a href="$nextNesting"><b>$nextNestingName</b></a></li>
+                          |   </ul>
+                          |</body>""".stripMargin("|")
+            }
+
+        where:
+            path   || nextNesting | nextNestingName
+            "1"     | "1/2"       | "2"
+            "1/2"   | "1/2/3"     | "3"
+            "1/2/3" | "1/2/3/4"   | "4"
+    }
+
+    def "should serve listing of nested directories with file and file content"() {
+        when:
+            Response listingResult = client.newCall(new Request.Builder()
+                    .get().url("http://localhost:8081/1/2/3/4").build()).execute()
+
+        then:
+            with(listingResult) {
+                code() == 200
+                header("Content-Type") == "text/html; charset=UTF-8"
+                def response = body().string()
+                response == """<!DOCTYPE html>
+                          |<body>
+                          |   <ul>
+                          |      <li><a href="1/2/3/4/deepHiddenFile"><b>deepHiddenFile</b></a></li>
+                          |   </ul>
+                          |</body>""".stripMargin("|")
+            }
+
+        when:
+            Response textResult = client.newCall(new Request.Builder()
+                    .get().url("http://localhost:8081/1/2/3/4/deepHiddenFile").build()).execute()
+
+        then:
+            with(textResult) {
+                code() == 200
+                header("Content-Type") == "text/plain; charset=us-ascii" || header("Content-Type") == "binary/octet-stream" //not Unix systems
+                body().string() == "still served"
+            }
+    }
+
+    // TODO secure against .. traversing
+    // TODO test for target without slash
 
     def "should return 405 and Allow header when request uses method other than GET"() {
         when:

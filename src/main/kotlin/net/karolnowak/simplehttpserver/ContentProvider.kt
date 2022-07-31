@@ -18,19 +18,23 @@ interface ContentProvider {
 }
 
 class FileContentProvider(private val path: Path) : ContentProvider {
-    override fun contains(requestTarget: String) = path.toString().endsWith(requestTarget) || requestTarget == ROOT
+    override fun contains(requestTarget: String) = requestTarget == ROOT
     override fun getResource(requestTarget: String) = FileContent(path)
 }
 
-class DirectoryContentProvider(path: Path) : ContentProvider {
-    private val files = Files.list(path).collect(toList())
+class DirectoryContentProvider(private val path: Path) : ContentProvider {
     override fun contains(requestTarget: String) =
-        files.any { it.toString().endsWith(requestTarget) } || requestTarget == ROOT
+        requestTarget == ROOT || Files.exists(requestTarget.relativeTo(path))
 
-    override fun getResource(requestTarget: String) =
-        if (requestTarget == ROOT) DirectoryListing(files)
-        else FileContent(getFilePath(requestTarget))
-
-    private fun getFilePath(resource: String) =
-        files.firstOrNull { it.toString().endsWith(resource) }!!.toAbsolutePath()
+    override fun getResource(requestTarget: String): Content {
+        val targetPath = requestTarget.relativeTo(path)
+        return when {
+            requestTarget == ROOT -> DirectoryListing(Files.list(path).collect(toList()), path)
+            Files.isRegularFile(targetPath) -> FileContent(targetPath)
+            Files.isDirectory(targetPath) -> DirectoryListing(Files.list(targetPath).collect(toList()), path)
+            else -> throw IllegalAccessException("Cannot get resource $requestTarget")
+        }
+    }
 }
+
+private fun String.relativeTo(path: Path): Path = path.resolve(this.drop(1)) // remove leading slash

@@ -17,7 +17,6 @@ class FileContent(path: Path) : Content {
     private val CONTENT_TYPE_CHECK_TIMEOUT_MS = 50L
 
     private val contentType = getContentType(path)
-
     private val byteArray = Files.readAllBytes(path)
 
     override fun asByteArray(): ByteArray = byteArray
@@ -50,7 +49,7 @@ class FileContent(path: Path) : Content {
     }
 }
 
-class DirectoryListing(files: List<Path>) : Content {
+class DirectoryListing(files: List<Path>, private val basePath: Path) : Content {
     private val sortedFiles = files.sortedWith(
         compareByDescending<Path> { Files.isDirectory(it) } // directories first
             .thenComparing(compareBy { it.fileName }))
@@ -63,13 +62,13 @@ class DirectoryListing(files: List<Path>) : Content {
         """<!DOCTYPE html>
           |<body>
           |   <ul>
-          |      ${sortedFiles.joinToString(separator = "") { it.toHtmlListItem() }}
+          |      ${sortedFiles.joinToString(separator = "") { it.toHtmlListItem(basePath) }}
           |   </ul>
           |</body>
         """.trimMargin("|").toByteArray()
 }
 
-private fun Path.toHtmlListItem(): String = """<li><a href="${this.fileName}"><b>${this.fileName}</b></a></li>"""
+private fun Path.toHtmlListItem(basePath: Path): String = """<li><a href="${basePath.relativize(this)}"><b>${this.fileName}</b></a></li>"""
 
 class NoContent : Content {
     override fun asByteArray() = ByteArray(0)
