@@ -6,6 +6,7 @@ import java.net.Socket
 
 const val EOL = "\r\n"
 const val ROOT = """/"""
+const val ENCODED_SPACE = "%20"
 
 class HttpServer(private val contentProvider: ContentProvider, private val port: Int = 80) {
 
@@ -47,8 +48,11 @@ private fun Socket.readRequest(): Request {
     val requestLine = getInputStream().bufferedReader().readLine() // liberal in EOL recognition
     val tokens = requestLine.split(" ")
     require(tokens.size == 3)
-    return Request(tokens[0], tokens[1], tokens[2])
+    return Request(tokens[0], tokens[1].decodeSpaces(), tokens[2])
 }
+
+fun String.decodeSpaces(): String = this.replace(ENCODED_SPACE, " ")
+fun String.encodeSpaces(): String = this.replace(" ", ENCODED_SPACE)
 
 internal data class Request(val method: String, val requestTarget: String, val httpVersion: String) {
     fun isValid() = !requestTarget.contains("..") && !requestTarget.uppercase().contains("%2E%2E")

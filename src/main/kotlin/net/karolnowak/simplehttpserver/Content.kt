@@ -34,7 +34,9 @@ class FileContent(path: Path) : Content {
 
     private fun executeFileCommand(path: Path): ContentType? {
         return try {
-            val fileTypeCheck = Runtime.getRuntime().exec("file -I $path")
+            val fileTypeCheck = Runtime.getRuntime().exec(arrayOf("file", "-I", "$path"))
+            // cannot use exec with single String method because it tokenizes path with spaces despite surrounding it with quotes
+            // https://bugs.java.com/bugdatabase/view_bug.do?bug_id=4272706
             fileTypeCheck.waitFor(CONTENT_TYPE_CHECK_TIMEOUT_MS, MILLISECONDS)
             if (fileTypeCheck!!.exitValue() != 0) return null
             val fileResult = fileTypeCheck
@@ -57,18 +59,21 @@ class DirectoryListing(files: List<Path>, private val basePath: Path) : Content 
     override fun asByteArray() = listFiles()
 
     override fun type() = ContentType("text/html; charset=UTF-8")
+    private val UL_ELEMENT_INDENT: String = "      "
 
     private fun listFiles() =
         """<!DOCTYPE html>
           |<body>
           |   <ul>
-          |      ${sortedFiles.joinToString(separator = "") { it.toHtmlListItem(basePath) }}
+          |      ${sortedFiles.joinToString(separator = "\n" + UL_ELEMENT_INDENT) { it.toHtmlListItem(basePath) }}
           |   </ul>
           |</body>
         """.trimMargin("|").toByteArray()
 }
 
-private fun Path.toHtmlListItem(basePath: Path): String = """<li><a href="${basePath.relativize(this)}"><b>${this.fileName}</b></a></li>"""
+private fun Path.toHtmlListItem(basePath: Path): String = """<li><a href="/${basePath.relativize(this).encodeSpaces()}"><b>${this.fileName}</b></a></li>"""
+
+private fun Path.encodeSpaces(): String = this.toString().encodeSpaces()
 
 class NoContent : Content {
     override fun asByteArray() = ByteArray(0)

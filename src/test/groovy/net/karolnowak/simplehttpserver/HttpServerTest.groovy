@@ -92,7 +92,10 @@ class HttpServerTest extends Specification {
             response == """<!DOCTYPE html>
                           |<body>
                           |   <ul>
-                          |      <li><a href="1"><b>1</b></a></li><li><a href="file"><b>file</b></a></li><li><a href="wiki_logo.png"><b>wiki_logo.png</b></a></li>
+                          |      <li><a href="/1"><b>1</b></a></li>
+                          |      <li><a href="/directory%20with%20spaces"><b>directory with spaces</b></a></li>
+                          |      <li><a href="/file"><b>file</b></a></li>
+                          |      <li><a href="/wiki_logo.png"><b>wiki_logo.png</b></a></li>
                           |   </ul>
                           |</body>""".stripMargin("|")
     }
@@ -142,9 +145,9 @@ class HttpServerTest extends Specification {
 
         where:
             path   || nextNesting | nextNestingName
-            "1"     | "1/2"       | "2"
-            "1/2"   | "1/2/3"     | "3"
-            "1/2/3" | "1/2/3/4"   | "4"
+            "1"     | "/1/2"       | "2"
+            "1/2"   | "/1/2/3"     | "3"
+            "1/2/3" | "/1/2/3/4"   | "4"
     }
 
     def "should serve listing of nested directories with file and file content"() {
@@ -160,7 +163,7 @@ class HttpServerTest extends Specification {
                 response == """<!DOCTYPE html>
                           |<body>
                           |   <ul>
-                          |      <li><a href="1/2/3/4/deepHiddenFile"><b>deepHiddenFile</b></a></li>
+                          |      <li><a href="/1/2/3/4/deepHiddenFile"><b>deepHiddenFile</b></a></li>
                           |   </ul>
                           |</body>""".stripMargin("|")
             }
@@ -174,6 +177,35 @@ class HttpServerTest extends Specification {
                 code() == 200
                 header("Content-Type") == "text/plain; charset=us-ascii" || header("Content-Type") == "binary/octet-stream" //not Unix systems
                 body().string() == "still served"
+            }
+    }
+
+    def "should support spaces in file and directory names"() {
+        when:
+            Response listingResult = client.newCall(new Request.Builder()
+                    .get().url("http://localhost:8081/directory%20with%20spaces").build()).execute()
+            // even HttpURLConnection encodes spaces, consider testing with custom bogus client
+        then:
+            with (listingResult) {
+                code == 200
+                header("Content-Type") == "text/html; charset=UTF-8"
+                def response = body().string()
+                response == """<!DOCTYPE html>
+                          |<body>
+                          |   <ul>
+                          |      <li><a href="/directory%20with%20spaces/file%20with%20spaces%20in%20name"><b>file with spaces in name</b></a></li>
+                          |   </ul>
+                          |</body>""".stripMargin("|")
+            }
+
+        when:
+            Response textResult = client.newCall(new Request.Builder()
+                    .get().url("http://localhost:8081/directory%20with%20spaces/file%20with%20spaces%20in%20name").build()).execute()
+        then:
+            with(textResult) {
+                code() == 200
+                header("Content-Type") == "text/plain; charset=us-ascii" || header("Content-Type") == "binary/octet-stream" //not Unix systems
+                body().string() == "should also work"
             }
     }
 
