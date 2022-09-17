@@ -1,5 +1,9 @@
 package net.karolnowak.simplehttpserver
 
+import net.karolnowak.simplehttpserver.common.Headers
+import net.karolnowak.simplehttpserver.request.NoRange
+import net.karolnowak.simplehttpserver.request.Request
+import net.karolnowak.simplehttpserver.response.Response
 import java.io.OutputStream
 import java.net.ServerSocket
 import java.net.Socket
@@ -15,7 +19,7 @@ class HttpServer(private val contentProvider: ContentProvider, private val port:
     }
 
     private fun serveFile() {
-        val socket = ServerSocket(port, 0) // backlog 0 seems to be ignored
+        val socket = ServerSocket(port, 10) // ten connections are accepted automatically, it doesn't happen after socket.accept()!
         while (true) {
             runCatching {
                 socket.accept().use { socket ->
@@ -29,45 +33,25 @@ class HttpServer(private val contentProvider: ContentProvider, private val port:
         }
     }
 
-    private fun respondTo(request: Request): Response {
-        if (request.isValid().not()) {
-            return Response(400, "Your fault")
+    private fun respondTo(request: Request): Response =
+        when {
+            request.isValid().not() -> Response(400, "Your fault")
+            request.method != "GET" -> Response(405, "Nope")
+            contentProvider.doesntContain(request.requestTarget) -> Response(404, "It doesn't exist")
+            request.getRange().multipleRanges() -> Response(416, "Sorry won't send this Range")
+            request.getRange() != NoRange() -> Response(206, "Here is your part", contentProvider.getResource(request.requestTarget), request.getRange())
+            else -> Response(200, "Spoko", contentProvider.getResource(request.requestTarget))
         }
 
-        if (request.method != "GET") {
-            return Response(405, "Nope")
-        }
-        if (contentProvider.doesntContain(request.requestTarget)) {
-            return Response(404, "It doesn't exist")
-        }
-        return Response(200, "Spoko", contentProvider.getResource(request.requestTarget))
+    private fun Socket.readRequest(): Request {
+        val reader = getInputStream().bufferedReader()
+        val requestLine = reader.readLine() // liberal in EOL recognition
+        val tokens = requestLine.split(" ")
+        require(tokens.size == 3)
+        return Request(tokens[0], tokens[1].decodeSpaces(), tokens[2], Headers(reader))
     }
-}
 
-private fun Socket.readRequest(): Request {
-    val requestLine = getInputStream().bufferedReader().readLine() // liberal in EOL recognition
-    val tokens = requestLine.split(" ")
-    require(tokens.size == 3)
-    return Request(tokens[0], tokens[1].decodeSpaces(), tokens[2])
 }
 
 fun String.decodeSpaces(): String = this.replace(ENCODED_SPACE, " ")
 fun String.encodeSpaces(): String = this.replace(" ", ENCODED_SPACE)
-
-internal data class Request(val method: String, val requestTarget: String, val httpVersion: String) {
-    fun isValid() = !requestTarget.contains("..") && !requestTarget.uppercase().contains("%2E%2E")
-}
-
-internal data class Response(val statusCode: Int, val reasonPhrase: String, val content: Content = NoContent()) {
-    private fun isSuccessful() = statusCode in (100..399)
-    private fun statusLineAndHeaders(): String {
-        val statusLine = "HTTP/1.1 $statusCode $reasonPhrase"
-        val headers = if (isSuccessful())
-            "Content-Length: ${content.length()}${EOL}" +
-            "Content-Type: ${content.type().raw}"
-        else "Allow: GET"
-        return statusLine + EOL + headers + EOL + EOL
-    }
-
-    fun asBytes() = statusLineAndHeaders().toByteArray() + content.asByteArray()
-}

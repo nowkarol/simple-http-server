@@ -52,8 +52,10 @@ class HttpServerTest extends Specification {
             with(result) {
                 code() == 200
                 header("Content-Type") == "text/plain; charset=us-ascii" || header("Content-Type") == "binary/octet-stream" //not Unix systems
+                header("Content-Length") == "32"
+                header("Accept-Ranges") == "bytes"
                 body().string() == """this is file content
-                                        |second line""".stripMargin('|')
+                                     |second line""".stripMargin('|')
             }
             // server doesn't add CR
     }
@@ -77,6 +79,7 @@ class HttpServerTest extends Specification {
                 code() == 200
                 header("Content-Type") == "image/png; charset=binary" || header("Content-Type") == "binary/octet-stream" //not Unix systems
                 header("Content-Length") == "199002"
+                header("Accept-Ranges") == "bytes"
                 body().bytes().size() == 199002
             }
     }
@@ -86,10 +89,13 @@ class HttpServerTest extends Specification {
             Response result = client.newCall(new Request.Builder()
                     .get().url("http://localhost:8081").build()).execute()
         then:
-            result.code == 200
-            result.header("Content-Type") == "text/html; charset=UTF-8"
-            def response = result.body().string()
-            response == """<!DOCTYPE html>
+            with (result) {
+                code == 200
+                header("Content-Type") == "text/html; charset=UTF-8"
+                header("Content-Length") == "285"
+                header("Accept-Ranges") == "bytes"
+                def response = body().string()
+                response == """<!DOCTYPE html>
                           |<body>
                           |   <ul>
                           |      <li><a href="/1"><b>1</b></a></li>
@@ -98,6 +104,7 @@ class HttpServerTest extends Specification {
                           |      <li><a href="/wiki_logo.png"><b>wiki_logo.png</b></a></li>
                           |   </ul>
                           |</body>""".stripMargin("|")
+            }
     }
 
     def "should serve all files from directory"() {
@@ -108,6 +115,8 @@ class HttpServerTest extends Specification {
             with(textResult) {
                 code() == 200
                 header("Content-Type") == "text/plain; charset=us-ascii" || header("Content-Type") == "binary/octet-stream" //not Unix systems
+                header("Content-Length") == "32"
+                header("Accept-Ranges") == "bytes"
                 body().string() == """this is file content
                                       |second line""".stripMargin('|')
             }
@@ -120,6 +129,7 @@ class HttpServerTest extends Specification {
                 code() == 200
                 header("Content-Type") == "image/png; charset=binary" || header("Content-Type") == "binary/octet-stream" //not Unix systems
                 header("Content-Length") == "199002"
+                header("Accept-Ranges") == "bytes"
                 body().bytes().size() == 199002
             }
     }
@@ -134,6 +144,7 @@ class HttpServerTest extends Specification {
             with(listingResult) {
                 code() == 200
                 header("Content-Type") == "text/html; charset=UTF-8"
+                header("Accept-Ranges") == "bytes"
                 def response = body().string()
                 response == """<!DOCTYPE html>
                           |<body>
@@ -159,6 +170,8 @@ class HttpServerTest extends Specification {
             with(listingResult) {
                 code() == 200
                 header("Content-Type") == "text/html; charset=UTF-8"
+                header("Content-Length") == "122"
+                header("Accept-Ranges") == "bytes"
                 def response = body().string()
                 response == """<!DOCTYPE html>
                           |<body>
@@ -176,7 +189,38 @@ class HttpServerTest extends Specification {
             with(textResult) {
                 code() == 200
                 header("Content-Type") == "text/plain; charset=us-ascii" || header("Content-Type") == "binary/octet-stream" //not Unix systems
+                header("Content-Length") == "12"
                 body().string() == "still served"
+            }
+    }
+
+    def "should serve part of response using Range header"() {
+        when:
+            Response result = client.newCall(new Request.Builder()
+                    .get().url("http://localhost").header("Range", "bytes=21-").build()).execute()
+
+        then:
+            with(result) {
+                code() == 206
+                header("Content-Type") == "text/plain; charset=us-ascii" || header("Content-Type") == "binary/octet-stream"
+                header("Content-Length") == "11"
+                header("Content-Range") == "bytes 21-31/32"
+                body().string() == """second line"""
+            }
+    }
+
+    /**
+     * TODO implement it
+     */
+    def "should return 416 Range Not Satisfiable when more than one Range is passed"() {
+        when:
+            Response result = client.newCall(new Request.Builder()
+                    .get().url("http://localhost").header("Range", "bytes= 0-999, 4500-5499").build()).execute()
+
+        then:
+            with(result) {
+                code() == 416
+                body().string().isEmpty()
             }
     }
 
@@ -189,6 +233,8 @@ class HttpServerTest extends Specification {
             with (listingResult) {
                 code == 200
                 header("Content-Type") == "text/html; charset=UTF-8"
+                header("Content-Length") == "168"
+                header("Accept-Ranges") == "bytes"
                 def response = body().string()
                 response == """<!DOCTYPE html>
                           |<body>
@@ -205,6 +251,8 @@ class HttpServerTest extends Specification {
             with(textResult) {
                 code() == 200
                 header("Content-Type") == "text/plain; charset=us-ascii" || header("Content-Type") == "binary/octet-stream" //not Unix systems
+                header("Content-Length") == "16"
+                header("Accept-Ranges") == "bytes"
                 body().string() == "should also work"
             }
     }

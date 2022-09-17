@@ -1,13 +1,15 @@
 package net.karolnowak.simplehttpserver
 
+import net.karolnowak.simplehttpserver.request.NoRange
+import net.karolnowak.simplehttpserver.request.Range
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit.MILLISECONDS
 
 interface Content {
-    fun asByteArray(): ByteArray
+    fun asByteArray(range: Range = NoRange()): ByteArray
     fun type(): ContentType
-    fun length() = asByteArray().size
+    fun length(range: Range = NoRange()) = asByteArray(range).size
 }
 
 data class ContentType(val raw: String)
@@ -19,7 +21,8 @@ class FileContent(path: Path) : Content {
     private val contentType = getContentType(path)
     private val byteArray = Files.readAllBytes(path)
 
-    override fun asByteArray(): ByteArray = byteArray
+    override fun asByteArray(range: Range): ByteArray =
+        byteArray.sliceArray(range.asIntRange(byteArray.size))
 
     override fun type() = contentType
 
@@ -56,7 +59,11 @@ class DirectoryListing(files: List<Path>, private val basePath: Path) : Content 
         compareByDescending<Path> { Files.isDirectory(it) } // directories first
             .thenComparing(compareBy { it.fileName }))
 
-    override fun asByteArray() = listFiles()
+    override fun asByteArray(range: Range): ByteArray {
+        val listingBytes = listFiles()
+        return  listingBytes.sliceArray(range.asIntRange(listingBytes.size))
+    }
+
 
     override fun type() = ContentType("text/html; charset=UTF-8")
     private val UL_ELEMENT_INDENT: String = "      "
@@ -76,7 +83,7 @@ private fun Path.toHtmlListItem(basePath: Path): String = """<li><a href="/${bas
 private fun Path.encodeSpaces(): String = this.toString().encodeSpaces()
 
 class NoContent : Content {
-    override fun asByteArray() = ByteArray(0)
+    override fun asByteArray(range: Range) = ByteArray(0)
     override fun type() = throw IllegalStateException("NoContent cannot be asked for type")
-    override fun length() = 0
+    override fun length(range: Range) = 0
 }
