@@ -16,8 +16,11 @@ internal data class Response(val statusCode: Int, val reasonPhrase: String, val 
                     "Content-Length: ${content.length(range)}$EOL" +
                     "Content-Type: ${content.type().raw}$EOL"+
                      range.asResponseHeader(content.length()) +
-                    "Accept-Ranges: bytes$EOL"
-                else -> "Allow: GET$EOL"
+                    "Accept-Ranges: bytes$EOL" +
+                    "Connection: Keep-Alive$EOL"
+
+                else -> "Content-Length: 0$EOL" +
+                        "Allow: GET$EOL"
             }
 
         return statusLine + EOL + headers + EOL

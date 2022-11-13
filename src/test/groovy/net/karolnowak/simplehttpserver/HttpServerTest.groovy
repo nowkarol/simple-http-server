@@ -64,10 +64,13 @@ class HttpServerTest extends Specification {
         when:
             10.times {
                 client.newCall(new Request.Builder()
-                        .get().url("http://localhost").build()).execute()
+                        .get().url("http://localhost").build()).execute().close()   // without closing request OkHttp won't reuse connection for http 1.1
             }
         then:
             noExceptionThrown()
+        and: "should reuse connection"
+            client.connectionPool().connectionCount() == 1
+            client.connectionPool().idleConnectionCount() == 1
     }
 
     def "should serve binary file"() {
@@ -274,7 +277,7 @@ class HttpServerTest extends Specification {
            def (body, exception) = useClientWhichDoesntSanitizeRequest("http://localhost:8081/$invalidPath")
 
         then:
-            body == null
+            body == null    // it doesn't mind don't having Content-Length nor closing connection
             exception.message.contains " 400 "
 
         where: invalidPath << ["..", "1/2/..", "1/2/../2", "1/2/..", "1/2/%2E%2E"]
