@@ -29,7 +29,7 @@ class DirectoryContentProvider(private val path: Path) : ContentProvider {
     override fun getResource(requestTarget: String): Content {
         val targetPath = requestTarget.relativeTo(path)
         return when {
-            requestTarget == ROOT -> DirectoryListing(Files.list(path).collect(toList()), path)
+            requestTarget == ROOT -> DirectoryListing(readFilesFrom(path), path)
             Files.isRegularFile(targetPath) -> FileContent(targetPath)
             Files.isDirectory(targetPath) -> DirectoryListing(Files.list(targetPath).collect(toList()), path)
             else -> throw IllegalAccessException("Cannot get resource $requestTarget")
@@ -38,3 +38,6 @@ class DirectoryContentProvider(private val path: Path) : ContentProvider {
 }
 
 private fun String.relativeTo(path: Path): Path = path.resolve(this.drop(1)) // remove leading slash
+
+private fun readFilesFrom(path:Path): List<Path> = Files.list(path)
+    .let { stream -> stream.toList().also { stream.close() } } // this DirectoryStream needs to be closed manually
