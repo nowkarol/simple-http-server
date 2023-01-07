@@ -22,6 +22,7 @@ dependencies {
 test {
     useJUnitPlatform()
 }
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 task fatJar(type: Jar) {
     manifest {
